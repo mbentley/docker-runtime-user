@@ -1,7 +1,7 @@
 mbentley/runtime-user
 =====================
 
-docker image to demonstrate creating a user and group and runtime; based off of alpine:latest
+docker image to demonstrate creating a user and group at runtime; based off of alpine:latest
 
 Build image:
 ```
