@@ -10,7 +10,7 @@ docker build -t mbentley/runtime-user .
 
 Example usage:
 ```
-docker run -d \
+docker run -it --rm \
   -e MY_USERNAME=default \
   -e MY_GROUP=default \
   -e MY_UID=1000 \
