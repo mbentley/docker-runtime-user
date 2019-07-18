@@ -46,4 +46,4 @@ chown -R "${MY_USERNAME}:${MY_GROUP}" "/opt/myapp"
 echo "INFO: Running myapp as ${MY_USERNAME}:${MY_GROUP} (${MY_UID}:${MY_GID})"
 
 # exec and run the actual process specified in the CMD of the Dockerfile (which gets passed as ${*})
-exec su - "${MY_USERNAME}" -c "${*}"
+exec gosu "${MY_USERNAME}" "${@}"
