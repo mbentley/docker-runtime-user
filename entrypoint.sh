@@ -22,7 +22,7 @@ then
 else
   echo "INFO: Group doesn't exist; creating..."
   # create the group
-  addgroup -g "${MY_GID}" "${MY_GROUP}"
+  addgroup -g "${MY_GID}" "${MY_GROUP}" || (echo "INFO: Group exists but with a different name; renaming..."; groupmod -g "${MY_GID}" -n "${MY_GROUP}" "$(awk -F ':' '{print $1":"$3}' < /etc/group | grep ":${MY_GID}$" | awk -F ":" '{print $1}')")
 fi
 
 

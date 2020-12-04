@@ -1,9 +1,9 @@
 FROM alpine:latest
 MAINTAINER Matt Bentley <mbentley@mbentley.net>
 
-# install gosu
+# install gosu & shadow (for groupmod)
 RUN echo '@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositories &&\
-  apk add --no-cache gosu@edge
+  apk add --no-cache gosu@edge shadow
 
 # copy in the entrypoint
 COPY entrypoint.sh /entrypoint.sh
