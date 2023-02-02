@@ -2,9 +2,9 @@
 FROM mbentley/alpine:latest
 LABEL maintainer="Matt Bentley <mbentley@mbentley.net>"
 
-# install gosu & shadow (for groupmod)
-RUN echo '@edge https://dl-cdn.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositories &&\
-  apk add --no-cache gosu@edge shadow
+# install gosu (from edge) & shadow for groupmod
+RUN apk add --no-cache shadow &&\
+  apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing gosu &&\
 
 # copy in the entrypoint
 COPY entrypoint.sh /entrypoint.sh
