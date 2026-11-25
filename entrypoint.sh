@@ -2,48 +2,66 @@
 
 set -e
 
-# use specified user name or use `default` if not specified
-MY_USERNAME="${MY_USERNAME:-default}"
-
-# use specified group name or use the same user name also as the group name
-MY_GROUP="${MY_GROUP:-${MY_USERNAME}}"
-
-# use the specified UID for the user
-MY_UID="${MY_UID:-1000}"
-
-# use the specified GID for the user
-MY_GID="${MY_GID:-${MY_UID}}"
-
-
-# check to see if group exists; if not, create it
-if grep -q -E "^${MY_GROUP}:" /etc/group > /dev/null 2>&1
+# if not running as root (e.g. `docker run --user`), we can't modify the user; just run the command
+if [ "$(id -u)" != "0" ]
 then
-  echo "INFO: Group exists; skipping creation"
-else
-  echo "INFO: Group doesn't exist; creating..."
-  # create the group
-  addgroup -g "${MY_GID}" "${MY_GROUP}" || (echo "INFO: Group exists but with a different name; renaming..."; groupmod -g "${MY_GID}" -n "${MY_GROUP}" "$(awk -F ':' '{print $1":"$3}' < /etc/group | grep ":${MY_GID}$" | awk -F ":" '{print $1}')")
+  echo "INFO: Not running as root; skipping user setup and running as $(id -u):$(id -g)"
+  exec "${@}"
 fi
 
+# use the specified UID/GID for the user or default to 1000
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
 
-# check to see if user exists; if not, create it
-if id -u "${MY_USERNAME}" > /dev/null 2>&1
+# make sure the UID/GID are numeric
+for ID in "${PUID}" "${PGID}"
+do
+  case "${ID}" in
+    ''|*[!0-9]*)
+      echo "ERROR: PUID and PGID must be numeric (PUID=${PUID}, PGID=${PGID})"
+      exit 1
+      ;;
+  esac
+done
+
+# warn if the user would be root-equivalent
+if [ "${PUID}" = "0" ] || [ "${PGID}" = "0" ]
 then
-  echo "INFO: User exists; skipping creation"
-else
-  echo "INFO: User doesn't exist; creating..."
-  # create the user
-  adduser -u "${MY_UID}" -G "${MY_GROUP}" -h "/home/${MY_USERNAME}" -s /bin/sh -D "${MY_USERNAME}"
+  echo "WARN: PUID or PGID is set to 0; myapp will run with root privileges"
+fi
+
+# update the group's GID if it doesn't match (-o allows a non-unique GID)
+if [ "$(id -g app)" != "${PGID}" ]
+then
+  echo "INFO: Setting GID of group 'app' to ${PGID}"
+  groupmod -o -g "${PGID}" app
+fi
+
+# update the user's UID if it doesn't match (-o allows a non-unique UID)
+if [ "$(id -u app)" != "${PUID}" ]
+then
+  echo "INFO: Setting UID of user 'app' to ${PUID}"
+  usermod -o -u "${PUID}" app
+fi
+
+# make sure the home directory matches the UID/GID (groupmod doesn't update file ownership)
+if [ "$(stat -c %u:%g /home/app)" != "${PUID}:${PGID}" ]
+then
+  chown -R app:app /home/app
 fi
 
 # make the directories needed to run my app
 mkdir -p /opt/myapp
 
-# change ownership of any directories needed to run my app as the proper UID/GID
-chown -R "${MY_USERNAME}:${MY_GROUP}" "/opt/myapp"
+# change ownership of any directories needed to run my app; only when it doesn't already match to avoid a slow recursive chown on every start
+if [ "$(stat -c %u:%g /opt/myapp)" != "${PUID}:${PGID}" ]
+then
+  echo "INFO: Updating ownership of /opt/myapp to ${PUID}:${PGID}"
+  chown -R app:app /opt/myapp
+fi
 
 # start myapp
-echo "INFO: Running myapp as ${MY_USERNAME}:${MY_GROUP} (${MY_UID}:${MY_GID})"
+echo "INFO: Running myapp as app:app (${PUID}:${PGID})"
 
 # exec and run the actual process specified in the CMD of the Dockerfile (which gets passed as ${*})
-exec gosu "${MY_USERNAME}" "${@}"
+exec gosu app "${@}"
